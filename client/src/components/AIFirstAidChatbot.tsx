@@ -400,7 +400,7 @@ Please describe your situation or type one of these topics for detailed guidance
     return (
       <Button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-24 right-6 h-14 w-14 rounded-full bg-accent hover:bg-accent/90 text-accent-foreground shadow-float z-40 transition-transform duration-150 hover:scale-105 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-accent"
+        className="fixed bottom-6 right-6 h-14 w-14 rounded-full bg-accent hover:bg-accent/90 text-accent-foreground shadow-float z-40 transition-transform duration-150 hover:scale-105 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-accent"
         size="icon"
         aria-label="Open AI first-aid assistant"
       >
@@ -410,10 +410,10 @@ Please describe your situation or type one of these topics for detailed guidance
   }
 
   return (
-    <Card className={`fixed right-6 z-40 shadow-float transition-all duration-300 ${
+    <Card className={`fixed right-6 z-[100] shadow-float transition-all duration-300 ${
       isMinimized 
-        ? "bottom-24 w-72 h-14" 
-        : "bottom-24 w-[360px] sm:w-[400px] h-[500px] flex flex-col"
+        ? "bottom-6 w-72 h-14" 
+        : "bottom-6 w-[360px] sm:w-[400px] h-[500px] flex flex-col"
     }`}>
       {/* Header */}
       <div className="flex items-center justify-between p-3 border-b border-border bg-primary text-primary-foreground rounded-t-lg">

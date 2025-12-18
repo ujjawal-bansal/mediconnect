@@ -1,25 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
-
-interface Doctor {
-  _id: string;
-  name: string;
-  email: string;
-  specialization: string;
-  experienceYears: number;
-  phone: string;
-  hospital?: string;
-  clinic?: string;
-  availability: "online" | "busy" | "offline";
-  modeAvailability: {
-    chat: boolean;
-    audio: boolean;
-    video: boolean;
-  };
-  rating?: number;
-  profileImageUrl?: string;
-}
+import { mockDoctorLogin, getCurrentDoctorAuth, logoutDoctor, updateDoctorAvailability, type Doctor } from "@/lib/mockData";
 
 interface DoctorAuthContextType {
   doctor: Doctor | null;
@@ -37,59 +17,33 @@ export const DoctorAuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setToken] = useState<string | null>(null);
 
   useEffect(() => {
-    const storedToken = localStorage.getItem("doctorToken");
-    const storedDoctor = localStorage.getItem("doctorData");
-    if (storedToken && storedDoctor) {
-      setToken(storedToken);
-      setDoctor(JSON.parse(storedDoctor));
+    const authData = getCurrentDoctorAuth();
+    if (authData) {
+      setToken(authData.token);
+      setDoctor(authData.doctor);
     }
   }, []);
 
   const login = async (email: string, password: string) => {
-    const res = await fetch(`${API_BASE}/api/doctor/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-
-    if (!res.ok) {
-      const error = await res.json();
-      throw new Error(error.message || "Login failed");
+    const authData = mockDoctorLogin(email, password);
+    if (!authData) {
+      throw new Error("Invalid credentials. Use any doctor email with password: doctor123");
     }
-
-    const data = await res.json();
-    setToken(data.token);
-    setDoctor(data.doctor);
-    localStorage.setItem("doctorToken", data.token);
-    localStorage.setItem("doctorData", JSON.stringify(data.doctor));
+    setToken(authData.token);
+    setDoctor(authData.doctor);
   };
 
   const logout = () => {
     setToken(null);
     setDoctor(null);
-    localStorage.removeItem("doctorToken");
-    localStorage.removeItem("doctorData");
+    logoutDoctor();
   };
 
   const updateAvailability = async (availability: "online" | "busy" | "offline") => {
-    if (!token) return;
-
-    const res = await fetch(`${API_BASE}/api/doctor/availability`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ availability }),
-    });
-
-    if (!res.ok) {
-      throw new Error("Failed to update availability");
-    }
-
-    const updatedDoctor = await res.json();
+    if (!doctor) return;
+    updateDoctorAvailability(doctor._id, availability);
+    const updatedDoctor = { ...doctor, availability };
     setDoctor(updatedDoctor);
-    localStorage.setItem("doctorData", JSON.stringify(updatedDoctor));
   };
 
   return (

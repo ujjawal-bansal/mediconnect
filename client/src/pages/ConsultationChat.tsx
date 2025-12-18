@@ -17,9 +17,7 @@ import {
   Check,
   CheckCheck,
 } from "lucide-react";
-import { io, Socket } from "socket.io-client";
-
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
+import { getConsultationById, addMessage, getDoctorById } from "@/lib/mockData";
 
 interface Message {
   id: string;
@@ -33,15 +31,13 @@ const ConsultationChat = () => {
   const navigate = useNavigate();
   const { id: consultationId } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
-  const doctorName = searchParams.get("doctor") || "Dr. Sarah Johnson";
+  const doctorName = searchParams.get("doctor") || "Doctor";
   const modeParam = (searchParams.get("mode") as "chat" | "audio" | "video") || "chat";
   const scrollRef = useRef<HTMLDivElement>(null);
-  const socketRef = useRef<Socket | null>(null);
   
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isCallPanelOpen, setIsCallPanelOpen] = useState(false);
   const [isMediaActive, setIsMediaActive] = useState(false);
@@ -65,19 +61,17 @@ const ConsultationChat = () => {
     };
   }, []);
 
-  // Load existing consultation messages from backend
+  // Load existing consultation messages from mock data
   useEffect(() => {
-    const loadConsultation = async () => {
+    const loadConsultation = () => {
       if (!consultationId) return;
       try {
-        const res = await fetch(`${API_BASE}/api/consultations/${consultationId}`);
-        if (!res.ok) {
-          throw new Error("Failed to load consultation");
+        const consultation = getConsultationById(consultationId);
+        if (!consultation) {
+          setError("Consultation not found.");
+          return;
         }
-        const data: {
-          messages: { sender: "patient" | "doctor" | "system"; text: string; timestamp: string }[];
-        } = await res.json();
-        const mapped: Message[] = data.messages.map((m, index) => ({
+        const mapped: Message[] = consultation.messages.map((m, index) => ({
           id: `${index}-${m.timestamp}`,
           sender: m.sender === "system" ? "doctor" : m.sender,
           content: m.text,
@@ -87,13 +81,15 @@ const ConsultationChat = () => {
         setMessages(mapped);
       } catch (err) {
         console.error(err);
-        setError(
-          "We couldn't load your consultation history. You can still send new messages to the doctor.",
-        );
+        setError("We couldn't load your consultation history.");
       }
     };
 
     loadConsultation();
+    
+    // Poll for new messages every 2 seconds (simulate real-time)
+    const interval = setInterval(loadConsultation, 2000);
+    return () => clearInterval(interval);
   }, [consultationId]);
 
   const startLocalMedia = async () => {
@@ -139,79 +135,62 @@ const ConsultationChat = () => {
     await startLocalMedia();
   };
 
-  // Set up Socket.IO connection and handlers
-  useEffect(() => {
-    if (!consultationId) return;
-
-    const socket = io(API_BASE, {
-      transports: ["websocket", "polling"],
-      withCredentials: true,
-    });
-    socketRef.current = socket;
-
-    socket.on("connect", () => {
-      setIsConnecting(false);
-      socket.emit("joinConsultation", consultationId);
-    });
-
-    socket.on(
-      "message:new",
-      (payload: {
-        consultationId: string;
-        sender: "patient" | "doctor";
-        text: string;
-        timestamp: string;
-      }) => {
-        if (payload.consultationId !== consultationId) return;
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: `${Date.now()}`,
-            sender: payload.sender,
-            content: payload.text,
-            timestamp: new Date(payload.timestamp),
-            status: "delivered",
-          },
-        ]);
-      },
-    );
-
-    socket.on("consultation:end", (payload: { consultationId: string }) => {
-      if (payload.consultationId !== consultationId) return;
-      setError("The consultation has been ended by the doctor.");
-    });
-
-    socket.on("disconnect", () => {
-      setIsConnecting(false);
-    });
-
-    return () => {
-      socket.disconnect();
-      socketRef.current = null;
-    };
-  }, [consultationId]);
-
   const handleSend = () => {
-    if (!inputValue.trim()) return;
+    if (!inputValue.trim() || !consultationId) return;
 
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      sender: "patient",
-      content: inputValue,
-      timestamp: new Date(),
-      status: "sent",
+    const newMessage = {
+      sender: "patient" as const,
+      text: inputValue,
+      timestamp: new Date().toISOString(),
     };
 
-    setMessages((prev) => [...prev, newMessage]);
+    addMessage(consultationId, newMessage);
     setInputValue("");
 
-    if (socketRef.current && consultationId) {
-      socketRef.current.emit("message:send", {
-        consultationId,
-        sender: "patient",
-        text: inputValue,
-      });
-    }
+    // Simulate doctor typing after 2-5 seconds
+    const delay = 2000 + Math.random() * 3000;
+    setTimeout(() => {
+      setIsTyping(true);
+      setTimeout(() => {
+        const doctorResponses = [
+          "Thank you for sharing that information. Can you tell me more about when this started?",
+          "I understand. Have you experienced this before?",
+          "That's helpful to know. Are you taking any medications currently?",
+          "I see. Let me check your symptoms. One moment please.",
+          "Based on what you've told me, I'd like to ask a few more questions.",
+          "Could you describe the intensity of your symptoms on a scale of 1-10?",
+          "How long have you been experiencing these symptoms?",
+          "Have you noticed any triggers that make it worse?",
+          "Are there any other symptoms accompanying this?",
+          "Let me review your information. Have you tried any remedies so far?",
+          "I appreciate you providing these details. Any allergies I should know about?",
+          "Does anything make the symptoms better or worse?",
+          "Have you had any recent changes in your diet or lifestyle?",
+          "Is this affecting your daily activities?",
+          "Thank you for that information. Let me assess your situation further.",
+        ];
+        
+        // Get a random response and ensure it's different from the last doctor message
+        const consultation = getConsultationById(consultationId);
+        const lastDoctorMessage = consultation?.messages
+          .filter(m => m.sender === "doctor")
+          .slice(-1)[0]?.text;
+        
+        let response;
+        let attempts = 0;
+        do {
+          response = doctorResponses[Math.floor(Math.random() * doctorResponses.length)];
+          attempts++;
+        } while (response === lastDoctorMessage && attempts < 10);
+        
+        addMessage(consultationId, {
+          sender: "doctor",
+          text: response,
+          timestamp: new Date().toISOString(),
+        });
+        setIsTyping(false);
+      }, 1500);
+    }, delay);
   };
 
   const formatTime = (date: Date) => {
@@ -245,10 +224,8 @@ const ConsultationChat = () => {
           <div>
             <h2 className="font-semibold">{doctorName}</h2>
             <div className="flex items-center gap-2">
-              <span className={`w-2 h-2 rounded-full ${isConnecting ? "bg-muted" : "bg-success"}`} />
-              <span className="text-xs text-muted-foreground">
-                {isConnecting ? "Connecting..." : "Online"}
-              </span>
+              <span className="w-2 h-2 rounded-full bg-success" />
+              <span className="text-xs text-muted-foreground">Online</span>
             </div>
           </div>
         </div>
