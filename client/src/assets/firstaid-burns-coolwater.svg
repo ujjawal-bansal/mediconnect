@@ -1,0 +1,10 @@
+<svg width="320" height="180" viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg">
+  <rect x="50" y="60" width="220" height="60" rx="16" fill="#fee2e2" />
+  <rect x="80" y="40" width="160" height="30" rx="12" fill="#bfdbfe" />
+  <path d="M90 40 Q100 20 110 40 T130 40 T150 40 T170 40 T190 40 T210 40" fill="none" stroke="#3b82f6" stroke-width="3" />
+  <text x="160" y="140" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#0f172a">
+    Cool under running water
+  </text>
+</svg>
+
+

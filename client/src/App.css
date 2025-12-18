@@ -1,0 +1,5 @@
+/* App-level overrides.
+ * Layout is handled via Tailwind container classes; the default Vite styles are removed
+ * to keep the UI clean and consistent with the design system.
+ */
+

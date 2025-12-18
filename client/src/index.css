@@ -1,0 +1,142 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Global design system – calm medical palette, Poppins font, and consistent shadows/radii.
+   All semantic colors are defined in HSL and consumed via Tailwind theme tokens. */
+
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap");
+
+@layer base {
+  :root {
+    /* Light mode – off-white background, teal primary, soft coral emergency */
+    --background: 35 25% 97%;
+    --foreground: 210 15% 20%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 210 15% 20%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 210 15% 20%;
+
+    /* Primary: teal / blue‑green */
+    --primary: 174 62% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary: soft neutral for calm surfaces */
+    --secondary: 210 20% 94%;
+    --secondary-foreground: 210 15% 25%;
+
+    --muted: 210 20% 96%;
+    --muted-foreground: 210 10% 45%;
+
+    /* Accent: soft coral, used for highlights and AI elements */
+    --accent: 10 80% 65%;
+    --accent-foreground: 0 0% 100%;
+
+    /* Destructive: emergency red, reserved for critical destructive actions */
+    --destructive: 0 73% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 210 20% 86%;
+    --input: 210 20% 90%;
+    --ring: 174 62% 45%;
+
+    --radius: 0.9rem;
+
+    /* Emergency + success tokens */
+    --emergency: 0 80% 60%;
+    --emergency-foreground: 0 0% 100%;
+
+    --success: 142 71% 40%;
+    --success-foreground: 0 0% 100%;
+
+    /* Hero background & shadows tuned for calm, high-quality feel */
+    --gradient-hero: linear-gradient(
+      135deg,
+      hsl(174 62% 45% / 0.12) 0%,
+      hsl(203 30% 96%) 35%,
+      hsl(35 25% 97%) 100%
+    );
+    --shadow-card: 0 10px 30px hsl(210 15% 20% / 0.08);
+    --shadow-float: 0 16px 40px hsl(210 15% 15% / 0.16);
+
+    /* Sidebar tokens (kept for shadcn components if used) */
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 210 25% 8%;
+    --foreground: 35 15% 92%;
+
+    --card: 210 20% 12%;
+    --card-foreground: 35 15% 92%;
+
+    --popover: 210 20% 12%;
+    --popover-foreground: 35 15% 92%;
+
+    --primary: 174 62% 52%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 20% 16%;
+    --secondary-foreground: 35 15% 92%;
+
+    --muted: 210 20% 16%;
+    --muted-foreground: 35 10% 70%;
+
+    --accent: 10 80% 68%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 78% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 210 20% 24%;
+    --input: 210 20% 24%;
+    --ring: 174 62% 52%;
+
+    --emergency: 0 80% 60%;
+    --emergency-foreground: 0 0% 100%;
+
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+
+    --gradient-hero: linear-gradient(
+      135deg,
+      hsl(174 62% 52% / 0.18) 0%,
+      hsl(210 25% 10%) 35%,
+      hsl(210 25% 8%) 100%
+    );
+    --shadow-card: 0 10px 30px hsl(0 0% 0% / 0.35);
+    --shadow-float: 0 16px 40px hsl(0 0% 0% / 0.5);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-semibold tracking-tight;
+  }
+
+  p {
+    @apply leading-relaxed;
+  }
+}
