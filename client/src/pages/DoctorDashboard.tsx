@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  User,
   Activity,
   Users,
   AlertTriangle,
@@ -19,26 +18,19 @@ import {
 } from "lucide-react";
 import { useDoctorAuth } from "@/context/DoctorAuthContext";
 import { toast } from "sonner";
-
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
+import {
+  getDoctorStats,
+  getPendingConsultations,
+  getActiveConsultations,
+  acceptConsultation,
+  updateConsultation,
+  type Consultation,
+} from "@/lib/mockData";
 
 interface Stats {
   activeConsultations: number;
   todayConsultations: number;
   emergencyConsultations: number;
-}
-
-interface Consultation {
-  _id: string;
-  patient: { name: string; email: string } | string;
-  patientName?: string;
-  patientPhone?: string;
-  mode: "chat" | "audio" | "video";
-  symptoms: string;
-  isEmergency?: boolean;
-  status: "active" | "ended";
-  acceptedAt?: string;
-  createdAt: string;
 }
 
 const DoctorDashboard = () => {
@@ -54,45 +46,27 @@ const DoctorDashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!token) {
+    if (!doctor) {
       navigate("/doctor/login");
       return;
     }
     loadData();
-    const interval = setInterval(loadData, 5000); // Refresh every 5 seconds
+    const interval = setInterval(loadData, 3000); // Refresh every 3 seconds
     return () => clearInterval(interval);
-  }, [token, navigate]);
+  }, [doctor, navigate]);
 
-  const loadData = async () => {
-    if (!token) return;
+  const loadData = () => {
+    if (!doctor) return;
 
     try {
-      const [statsRes, pendingRes, activeRes] = await Promise.all([
-        fetch(`${API_BASE}/api/doctor/dashboard/stats`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        fetch(`${API_BASE}/api/doctor/consultations/pending`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        fetch(`${API_BASE}/api/doctor/consultations/active`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-      ]);
+      const statsData = getDoctorStats(doctor._id);
+      setStats(statsData);
 
-      if (statsRes.ok) {
-        const statsData = await statsRes.json();
-        setStats(statsData);
-      }
+      const pendingData = getPendingConsultations(doctor._id);
+      setPendingConsultations(pendingData);
 
-      if (pendingRes.ok) {
-        const pendingData = await pendingRes.json();
-        setPendingConsultations(pendingData);
-      }
-
-      if (activeRes.ok) {
-        const activeData = await activeRes.json();
-        setActiveConsultations(activeData);
-      }
+      const activeData = getActiveConsultations(doctor._id);
+      setActiveConsultations(activeData);
 
       setIsLoading(false);
     } catch (err) {
@@ -110,41 +84,21 @@ const DoctorDashboard = () => {
     }
   };
 
-  const handleAccept = async (consultationId: string) => {
-    if (!token) return;
-
+  const handleAccept = (consultationId: string) => {
     try {
-      const res = await fetch(`${API_BASE}/api/doctor/consultations/${consultationId}/accept`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (res.ok) {
-        toast.success("Consultation accepted");
-        loadData();
-      } else {
-        toast.error("Failed to accept consultation");
-      }
+      acceptConsultation(consultationId);
+      toast.success("Consultation accepted");
+      loadData();
     } catch (err) {
       toast.error("Failed to accept consultation");
     }
   };
 
-  const handleReject = async (consultationId: string) => {
-    if (!token) return;
-
+  const handleReject = (consultationId: string) => {
     try {
-      const res = await fetch(`${API_BASE}/api/doctor/consultations/${consultationId}/reject`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (res.ok) {
-        toast.success("Consultation rejected");
-        loadData();
-      } else {
-        toast.error("Failed to reject consultation");
-      }
+      updateConsultation(consultationId, { status: "ended" });
+      toast.success("Consultation rejected");
+      loadData();
     } catch (err) {
       toast.error("Failed to reject consultation");
     }

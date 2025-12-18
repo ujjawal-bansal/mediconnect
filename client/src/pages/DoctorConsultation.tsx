@@ -16,14 +16,16 @@ import {
   AlertTriangle,
   FileText,
   Pill,
-  CheckCircle,
-  XCircle,
 } from "lucide-react";
 import { useDoctorAuth } from "@/context/DoctorAuthContext";
-import { io, Socket } from "socket.io-client";
 import { toast } from "sonner";
-
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
+import {
+  getConsultationById,
+  addMessage,
+  updateConsultation,
+  endConsultation,
+  type Consultation,
+} from "@/lib/mockData";
 
 interface Message {
   sender: "patient" | "doctor" | "system";
@@ -31,27 +33,11 @@ interface Message {
   timestamp: Date;
 }
 
-interface Consultation {
-  _id: string;
-  patient: { name: string; email: string } | string;
-  patientName?: string;
-  patientPhone?: string;
-  mode: "chat" | "audio" | "video";
-  symptoms: string;
-  messages: Message[];
-  isEmergency?: boolean;
-  doctorNotes?: string;
-  prescription?: string;
-  followUpInstructions?: string;
-  status: "active" | "ended";
-}
-
 const DoctorConsultation = () => {
   const { consultationId } = useParams<{ consultationId: string }>();
   const navigate = useNavigate();
-  const { token } = useDoctorAuth();
+  const { doctor } = useDoctorAuth();
   const scrollRef = useRef<HTMLDivElement>(null);
-  const socketRef = useRef<Socket | null>(null);
 
   const [consultation, setConsultation] = useState<Consultation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -62,18 +48,14 @@ const DoctorConsultation = () => {
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    if (!token || !consultationId) {
+    if (!doctor || !consultationId) {
       navigate("/doctor/login");
       return;
     }
     loadConsultation();
-    setupSocket();
-    return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-      }
-    };
-  }, [consultationId, token, navigate]);
+    const interval = setInterval(loadConsultation, 2000);
+    return () => clearInterval(interval);
+  }, [consultationId, doctor, navigate]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -81,19 +63,15 @@ const DoctorConsultation = () => {
     }
   }, [messages]);
 
-  const loadConsultation = async () => {
-    if (!token || !consultationId) return;
+  const loadConsultation = () => {
+    if (!consultationId) return;
 
     try {
-      const res = await fetch(`${API_BASE}/api/doctor/consultations/${consultationId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!res.ok) {
-        throw new Error("Failed to load consultation");
+      const data = getConsultationById(consultationId);
+      if (!data) {
+        toast.error("Consultation not found");
+        return;
       }
-
-      const data: Consultation = await res.json();
       setConsultation(data);
       setMessages(
         data.messages.map((m) => ({
@@ -110,73 +88,30 @@ const DoctorConsultation = () => {
     }
   };
 
-  const setupSocket = () => {
-    if (!consultationId) return;
-
-    const socket = io(API_BASE, {
-      transports: ["websocket", "polling"],
-    });
-    socketRef.current = socket;
-
-    socket.on("connect", () => {
-      socket.emit("joinConsultation", consultationId);
-    });
-
-    socket.on("message:new", (payload: { consultationId: string; sender: string; text: string; timestamp: string }) => {
-      if (payload.consultationId !== consultationId) return;
-      setMessages((prev) => [
-        ...prev,
-        {
-          sender: payload.sender as "patient" | "doctor" | "system",
-          text: payload.text,
-          timestamp: new Date(payload.timestamp),
-        },
-      ]);
-    });
-  };
-
   const handleSend = () => {
-    if (!inputValue.trim() || !socketRef.current || !consultationId) return;
+    if (!inputValue.trim() || !consultationId) return;
 
-    const newMessage: Message = {
-      sender: "doctor",
+    const newMessage = {
+      sender: "doctor" as const,
       text: inputValue,
-      timestamp: new Date(),
+      timestamp: new Date().toISOString(),
     };
 
-    socketRef.current.emit("message:send", {
-      consultationId,
-      sender: "doctor",
-      text: inputValue,
-    });
-
-    setMessages((prev) => [...prev, newMessage]);
+    addMessage(consultationId, newMessage);
     setInputValue("");
   };
 
-  const handleSaveNotes = async () => {
-    if (!token || !consultationId) return;
+  const handleSaveNotes = () => {
+    if (!consultationId) return;
 
     setIsSaving(true);
     try {
-      const res = await fetch(`${API_BASE}/api/doctor/consultations/${consultationId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          doctorNotes,
-          prescription,
-          followUpInstructions,
-        }),
+      updateConsultation(consultationId, {
+        doctorNotes,
+        prescription,
+        followUpInstructions,
       });
-
-      if (res.ok) {
-        toast.success("Notes saved successfully");
-      } else {
-        toast.error("Failed to save notes");
-      }
+      toast.success("Notes saved successfully");
     } catch (err) {
       toast.error("Failed to save notes");
     } finally {
@@ -184,41 +119,25 @@ const DoctorConsultation = () => {
     }
   };
 
-  const handleMarkEmergency = async (isEmergency: boolean) => {
-    if (!token || !consultationId) return;
+  const handleMarkEmergency = (isEmergency: boolean) => {
+    if (!consultationId) return;
 
     try {
-      const res = await fetch(`${API_BASE}/api/doctor/consultations/${consultationId}/emergency`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ isEmergency }),
-      });
-
-      if (res.ok) {
-        setConsultation((prev) => prev ? { ...prev, isEmergency } : null);
-        toast.success(isEmergency ? "Marked as emergency" : "Removed emergency status");
-      }
+      updateConsultation(consultationId, { isEmergency });
+      setConsultation((prev) => prev ? { ...prev, isEmergency } : null);
+      toast.success(isEmergency ? "Marked as emergency" : "Removed emergency status");
     } catch (err) {
       toast.error("Failed to update emergency status");
     }
   };
 
-  const handleEndConsultation = async () => {
-    if (!token || !consultationId) return;
+  const handleEndConsultation = () => {
+    if (!consultationId) return;
 
     try {
-      const res = await fetch(`${API_BASE}/api/doctor/consultations/${consultationId}/end`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (res.ok) {
-        toast.success("Consultation ended");
-        navigate("/doctor/dashboard");
-      }
+      endConsultation(consultationId);
+      toast.success("Consultation ended");
+      navigate("/doctor/dashboard");
     } catch (err) {
       toast.error("Failed to end consultation");
     }
